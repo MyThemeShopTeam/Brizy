@@ -151,6 +151,7 @@ class Brizy_Admin_Blocks_Api extends Brizy_Admin_AbstractApi {
 			$editorData = stripslashes( $this->param( 'data' ) );
 			$position   = stripslashes( $this->param( 'position' ) );
 			$status     = stripslashes( $this->param( 'status' ) );
+			$rulesData  = stripslashes( $this->param( 'rules' ) );
 
 			if ( ! in_array( $status, [ 'publish', 'draft' ] ) ) {
 				$this->error( 400, "Invalid post type" );
@@ -166,10 +167,10 @@ class Brizy_Admin_Blocks_Api extends Brizy_Admin_AbstractApi {
 			}
 
 			// rules
-			$rulesData = stripslashes( $this->param( 'rules' ) );
-			$rules     = $this->ruleManager->createRulesFromJson( $rulesData, Brizy_Admin_Blocks_Main::CP_GLOBAL );
-
-			$this->ruleManager->addRules( $block->getWpPostId(), $rules );
+			if ( $rulesData ) {
+				$rules = $this->ruleManager->createRulesFromJson( $rulesData, Brizy_Admin_Blocks_Main::CP_GLOBAL );
+				$this->ruleManager->addRules( $block->getWpPostId(), $rules );
+			}
 
 			$block->save();
 
@@ -256,24 +257,29 @@ class Brizy_Admin_Blocks_Api extends Brizy_Admin_AbstractApi {
 			 */
 			$block->setMeta( stripslashes( $this->param( 'meta' ) ) );
 			$block->set_editor_data( stripslashes( $this->param( 'data' ) ) );
-			$block->setDataVersion( $this->param( 'dataVersion' ) );
-			$block->getWpPost()->post_status = $status;
-			$position                        = stripslashes( $this->param( 'position' ) );
-
-			if ( $position ) {
-				$block->setPosition( Brizy_Editor_BlockPosition::createFromSerializedData( get_object_vars( json_decode( $position ) ) ) );
-			}
-
-			// rules
-			$rulesData = stripslashes( $this->param( 'rules' ) );
-			$rules     = $this->ruleManager->createRulesFromJson( $rulesData, Brizy_Admin_Blocks_Main::CP_GLOBAL );
-
-			$this->ruleManager->setRules( $block->getWpPostId(), $rules );
 
 			if ( (int) $this->param( 'is_autosave' ) ) {
 				$block->save( 1 );
 			} else {
+
+				$block->setDataVersion( $this->param( 'dataVersion' ) );
+				$block->getWpPost()->post_status = $status;
+
+				// position
+				$position = stripslashes( $this->param( 'position' ) );
+				if ( $position ) {
+					$block->setPosition( Brizy_Editor_BlockPosition::createFromSerializedData( get_object_vars( json_decode( $position ) ) ) );
+				}
+
+				// rules
+				$rulesData = stripslashes( $this->param( 'rules' ) );
+				if ( $rulesData ) {
+					$rules = $this->ruleManager->createRulesFromJson( $rulesData, Brizy_Admin_Blocks_Main::CP_GLOBAL );
+					$this->ruleManager->setRules( $block->getWpPostId(), $rules );
+				}
+
 				$block->save( 0 );
+
 				do_action( 'brizy_global_block_updated', $block );
 				do_action( 'brizy_global_data_updated' );
 			}
@@ -404,6 +410,7 @@ class Brizy_Admin_Blocks_Api extends Brizy_Admin_AbstractApi {
 				}
 
 				$block->setPosition( $positionObj );
+
 				if ( $this->param( 'is_autosave' ) == 1 ) {
 					$block->save( 1 );
 				} else {
@@ -523,8 +530,7 @@ class Brizy_Admin_Blocks_Api extends Brizy_Admin_AbstractApi {
 
 		$postId = $this->getBlockIdByUidAndBlockType( $postUid, $postType );
 
-		if($postId)
-		{
+		if ( $postId ) {
 			return wp_delete_post( $postId );
 		}
 	}
